@@ -17,8 +17,8 @@ int32_t isAsciiDigit(int32_t x){
     int sign = 1 << 31; // 用于判断符号位
     int upperBound = ~(sign + 0x39); // 或者用 ~(sign | 0x39)
     int lowerBound = ~0x30 + 1;
-    upperBound = sign&(upperBound+x) >> 31; 
-    lowerBound = sign&(lowerBound +x) >> 31; 
+    upperBound = sign&(upperBound+x) >> 31; // 需要为0，即相加结果为正数
+    lowerBound = sign&(lowerBound +x) >> 31; // 需要为0，即相加结果为正数
     return !(upperBound|lowerBound);
 }
 
