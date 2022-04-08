@@ -14,7 +14,7 @@ int negateBits(int x){
     return ~x +1;
 }
 
-
+// 用上下界来判断元素是否位于某个区间是非常好的办法, 在很多场景都有应用, 只有我们把前人的工具甩开才能体会到更深的数字美
 int32_t isAsciiDigit(int32_t x){
     int sign = 1 << 31; // 用于判断符号位
     int upperBound = ~(sign + 0x39); // 或者用 ~(sign | 0x39)
