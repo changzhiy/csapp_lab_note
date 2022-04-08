@@ -44,3 +44,36 @@ void printBits(int32_t x){
     bitset<32> bits = bitset<32> (x);
     cout << bits << endl;
 }
+
+/* howManyBits - return the minimum number of bits required to represent x in
+ *             two's complement
+ *  Examples: howManyBits(12) = 5
+ *            howManyBits(298) = 10
+ *            howManyBits(-5) = 4
+ *            howManyBits(0)  = 1
+ *            howManyBits(-1) = 1
+ *            howManyBits(0x80000000) = 32
+ *  Legal ops: ! ~ & ^ | + << >>
+ *  Max ops: 90
+ *  Rating: 4
+ */
+// 这个函数技巧比较强, 刚看到这个需求的时候觉得总不能一位一位找吧，答案显然用了一些技巧避免这么机械的操作
+int howManyBits(int x) {
+    int b16, b8, b4, b2, b1, b0;
+    int sign = x >> 31;
+    x = (sign & ~x) | (~sign & x);
+
+
+    b16 = !!(x >> 16) << 4;
+    x = x >> b16;
+    b8 = !!(x >> 8) << 3;
+    x = x >> b8;
+    b4 = !!(x >> 4) << 2;
+    x = x >> b4;
+    b2 = !!(x >> 2) << 1;
+    x = x >> b2;
+    b1 = !!(x >> 1);
+    x = x >> b1;
+    b0 = x;
+    return b16 + b8 + b4 + b2 + b1 + b0 + 1;
+}
