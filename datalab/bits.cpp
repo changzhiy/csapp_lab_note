@@ -45,6 +45,7 @@ void printBits(int32_t x){
     cout << bits << endl;
 }
 
+
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
  *  Examples: howManyBits(12) = 5
@@ -60,11 +61,13 @@ void printBits(int32_t x){
 // 这个函数技巧比较强, 刚看到这个需求的时候觉得总不能一位一位找吧，答案显然用了一些技巧避免这么机械的操作
 int howManyBits(int x) {
     int b16, b8, b4, b2, b1, b0;
+    // 注意这里的sign要么为0，要么为-1, 因为负数补码右移用1填 
     int sign = x >> 31;
-    x = (sign & ~x) | (~sign & x);
+    
+    x = (sign & ~x) | (~sign & x);//如果x为正则不变，否则按位取反（这样好找最高位为1的，原来是最高位为0的，这样也将符号位去掉了）
 
 
-    b16 = !!(x >> 16) << 4;
+    b16 = !!(x >> 16) << 4; // 高16位有1，则 b16 = 16,因为至少需要16位
     x = x >> b16;
     b8 = !!(x >> 8) << 3;
     x = x >> b8;
