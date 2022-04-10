@@ -90,3 +90,15 @@ int howManyBits(int x) {
     b0 = x;
     return b16 + b8 + b4 + b2 + b1 + b0 + 1;
 }
+
+unsigned floatScale2(unsigned uf) {
+    // 注意exponent是移码
+    int exp = (uf&0x7f800000)>>23; // 补码
+    int sign = uf&(1<<31);
+    // ｜操作在这里其实就像加法操作
+    if(exp==0) return uf<<1|sign;
+    if(exp==255) return uf;
+    exp++;
+    if(exp==255) return 0x7f800000|sign;
+    return (exp<<23)|(uf&0x807fffff);
+}
