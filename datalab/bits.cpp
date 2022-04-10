@@ -1,5 +1,21 @@
 // 笔记只记录一些个人认为比较有价值的思路
 
+// 打印32位int变量
+void printBits(int32_t x){
+    //    bitset可以打印二进制数
+    bitset<32> bits = bitset<32> (x);
+    cout << bits << endl;
+}
+
+
+// 打印32位int变量
+void printBits(int32_t x){
+    //    bitset可以打印二进制数
+    bitset<32> bits = bitset<32> (x);
+    cout << bits << endl;
+}
+
+
 // 不用if else等语句， !x 可以将非0的数打印0, 而!0 为 1,而!!即可将非0返回1
 // 下方代码测试成功
 int32_t judgePostiveOrNegative(int32_t x){
@@ -38,12 +54,6 @@ int conditional(int x, int y, int z) {
     return (x&y)|(~x&z);
 }
 
-// 打印32位int变量
-void printBits(int32_t x){
-    //    bitset可以打印二进制数
-    bitset<32> bits = bitset<32> (x);
-    cout << bits << endl;
-}
 
 
 /* howManyBits - return the minimum number of bits required to represent x in
