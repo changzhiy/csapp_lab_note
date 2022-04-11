@@ -91,6 +91,18 @@ int howManyBits(int x) {
     return b16 + b8 + b4 + b2 + b1 + b0 + 1;
 }
 
+//float
+/* 
+ * floatScale2 - Return bit-level equivalent of expression 2*f for
+ *   floating point argument f.
+ *   Both the argument and result are passed as unsigned int's, but
+ *   they are to be interpreted as the bit-level representation of
+ *   single-precision floating point values.
+ *   When argument is NaN, return argument
+ *   Legal ops: Any integer/unsigned operations incl. ||, &&. also if, while
+ *   Max ops: 30
+ *   Rating: 4
+ */
 unsigned floatScale2(unsigned uf) {
     // 注意exponent是移码
     int exp = (uf&0x7f800000)>>23; // 补码
@@ -101,4 +113,35 @@ unsigned floatScale2(unsigned uf) {
     exp++;
     if(exp==255) return 0x7f800000|sign;
     return (exp<<23)|(uf&0x807fffff);
+}
+
+/* 
+* floatFloat2Int - Return bit-level equivalent of expression (int) f
+*   for floating point argument f.
+*   Argument is passed as unsigned int, but
+*   it is to be interpreted as the bit-level representation of a
+*   single-precision floating point value.
+*   Anything out of range (including NaN and infinity) should return
+*   0x80000000u.
+*   Legal ops: Any integer/unsigned operations incl. ||, &&. also if, while
+*   Max ops: 30
+*   Rating: 4
+*/
+*/
+// 本题我认为难度或许不是很大，但要分很多情况讨论，必须熟练掌握IEEE浮点数的规则以及移位运算,|、&、^等位运算操作, 个人认为datalab中关于float的题目是这次实验的精髓.
+int floatFloat2Int(unsigned uf) {
+int sign = uf & 0x80000000;
+int exponent = ((uf&0x7f800000)>>23)-127;
+int fraction = (uf&0x007fffff)+(1<<23);
+if(exponent>31) return 0x80000000;
+if(exponent<0) return 0;
+if(exponent>23){
+    fraction <<= exponent-23;
+} else{
+    fraction >>=  23-exponent;
+}
+if(!(fraction|0x80000000)){ return 0x80000000;}
+else if(!sign) {return fraction;}
+else return ~fraction+1;
+    
 }
