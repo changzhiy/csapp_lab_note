@@ -1,4 +1,5 @@
-这个网站超级赞, 可以学习详细gdb文档 https://visualgdb.com/gdbreference/commands/,不过有一些没找到的操作还是自行百度
+这个网站超级赞, 可以学习详细gdb文档 https://visualgdb.com/gdbreference/commands/
+不过有一些没找到的操作还是自行百度
 
 **提醒**：一下如果你用的是M1芯片, arm64/v8架构的芯片虽然也有ubuntu、centos等系统, 但系统很多工具还没有做, 暂时还不能做实验, 解决方案就是租个服务器, 老老实实用amd64的机器.
 
