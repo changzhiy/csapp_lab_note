@@ -144,6 +144,134 @@ int main(){
         printf("1:%d,2:%d,3:%d,4:%d,5:%d",pn[0].stamp,pn[1].stamp,pn[2].stamp,pn[3].stamp,pn[4].stamp);
     }
 }
+```
+
+## 1.3 转置矩阵
+
+### situation 1
+
+```
+// 第一次用8x8扫描的成绩
+
+Part B: Testing transpose function
+Running ./test-trans -M 32 -N 32
+Running ./test-trans -M 64 -N 64
+Running ./test-trans -M 61 -N 67
+
+Cache Lab summary:
+                        Points   Max pts      Misses
+Csim correctness          27.0        27
+Trans perf 32x32           6.9         8         343
+Trans perf 64x64           0.0         8        4723
+Trans perf 61x67           0.0        10     invalid
+          Total points    33.9        53
+                            
+```
+
+实验做了一段时间才发现, A和B会存在cache冲突，毕竟b和s总共只有10位，如果在草稿纸上演算一下就知道A，B对角线上的块会导致cache conflict.那么我们直接用8个局部变量存储A的行元素不就行了？通过这种方式,我们得到情况一的miss为287 已经是满分水准了. 理论上最少256次，即每8个元素miss一次.情况二的理论最低应为1024次，情形三由于不是8的倍数，不过差不多也是1024的最低miss情况。
+
+> 什么时候miss最少？就是一次放入cache在使用完之前不会拿出来，那就一定miss最少。
+
+我们尝试去接近理论最小值，还有一种好方法，就是先把元素放入B，然后在B中进行重排，但一定不能在中间造成冲突，否则这样做就没有意义了。具体来做就是把A的一行取出放入B的一行，这样取8行放8行不会造成A，B冲突，且cache中会存放B的8x8个元素，然后在B内重新对小块进行转置即可。
+
+惊人的发现成绩达到了miss 259，已经可以进行下一个情形了。
+
+### situation 2
+
+这应该是最难的一个部分了.
+最基础情况的miss是4000+, 如果把情形1的代码直接拷贝到2, miss就是3203.情形2由于4行就会更新cache, 所以我们采取的策略是仍用8x8扫描, 上4x8与下4x8分别处理.做法给我一种拧魔方的感觉.
+
+[https://zhuanlan.zhihu.com/p/138881600](https://zhuanlan.zhihu.com/p/138881600)
+
+我确实要说这种转换太精彩了. 我是错了很多次, 再参考, 再错才真体会到了这个方法的精彩. 本方法的miss惊人的达到了1100, 很接近理论最小.
+
+### situation 3
+
+如果用原始策略, miss 4000+.
+
+```
+// 使用8x8的策略, miss 2100+.我们没必要用提取a0~a7的策略，因为situation 3没有那么高要求并且因为它不规则, 会需要很多判断条件, 且并不一定提取出来就会降低miss
+    
+for (i = 0; i < N; i+=len) {
+    for (j = 0; j < M; j+=len) {
+        for (k = i; k < i+len&&k<N; ++k) {
+            for(s=j; s < j + len && s < M;++s){
+                B[s][k] = A[k][s];
+            }
+        }
+    }
+}
+
+// 使用10x10的策略 2000+ 
+
+// 结合situation1的策略 2000+
+        // 先截取一个大正方形
+        for (i = 0; i < 56; i += len) {
+            for (j = 0; j < 56; j += len) {
+                for (k = i, s = j; k < i + len; k++, s++) {
+                    a0 = A[k][j];
+                    a1 = A[k][j + 1];
+                    a2 = A[k][j + 2];
+                    a3 = A[k][j + 3];
+                    a4 = A[k][j + 4];
+                    a5 = A[k][j + 5];
+                    a6 = A[k][j + 6];
+                    a7 = A[k][j + 7];
+                    B[s][i] = a0;
+                    B[s][i + 1] = a1;
+                    B[s][i + 2] = a2;
+                    B[s][i + 3] = a3;
+                    B[s][i + 4] = a4;
+                    B[s][i + 5] = a5;
+                    B[s][i + 6] = a6;
+                    B[s][i + 7] = a7;
+                }
+                for (k = 0; k < len; k++) {
+                    for (s = k + 1; s < len; s++) {
+                        a0 = B[k + j][s + i];
+                        B[k + j][s + i] = B[s + j][k + i];
+                        B[s + j][k + i] = a0;
+                    }
+                }
+            }
+        }
+        // 剩下5x67 + 61x11 (有重叠)
+        for (i = 0; i < N; i+=8) {
+            for (j = 56; j < M; j+=8) {
+                for (k = i; k < i+8&&k<N; ++k) {
+                    for(s=j; s < j + 12 && s < M;++s){
+                        B[s][k] = A[k][s];
+                    }
+                }
+            }
+        }
+        // 剩下5x56
+        for (i = 56; i < N; i+=8) {
+            for (j = 0; j < 56; j+=8) {
+                for (k = i; k < i+8&&k<N; ++k) {
+                    for(s=j; s < j + 8 && s < M;++s){
+                        B[s][k] = A[k][s];
+                    }
+                }
+            }
+        }
 
 
+    }
+
+// 使用20x20的策略 2002, 快到满分的水准了
+// 也可试试非正方形区域, 发现也没什么突破
+
+// 参照一个博主的用16x16, 结果就如下面的1992(个人觉得如果要让situation 3再低需要自己罗列出不同坐标调用的cache, 需要非常精细的安排)
+```
+
+
+```
+Cache Lab summary:
+                        Points   Max pts      Misses
+Csim correctness          27.0        27
+Trans perf 32x32           8.0         8         259
+Trans perf 64x64           8.0         8        1107
+Trans perf 61x67          10.0        10        1992
+          Total points    53.0        53
 ```
